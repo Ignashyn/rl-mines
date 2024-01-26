@@ -14,5 +14,5 @@
 `-` - уменьшить масштаб <br>
 ## Сборка
 В проекте имеется Makefile: <br>
-`make all TARGET_OS=<os>` - сборка проекта под `TARGET_OS`, где <os> = linux-amd64, win32, win64 <br>
+`make all TARGET_OS=<os>` - сборка проекта под `TARGET_OS`, где <os> = linux-amd64, win64 <br>
 `make clean` - удаление производных директорий проекта <br>
