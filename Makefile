@@ -1,6 +1,7 @@
 
 CC ?= cc
 CFLAGS = -std=c99 -I raylib/raylib-5.0/include/
+TARGET = rl-mines
 TARGET_OS ?= win64
 LDFLAGS = -L raylib/raylib-5.0/lib/$(TARGET_OS)
 LDLIBS = -lraylib
@@ -9,6 +10,7 @@ ifeq ($(TARGET_OS),linux-amd64)
 	LDLIBS += -lGL -lm -lpthread -ldl -lrt -lX11
 else
 	LDLIBS += -lopengl32 -lgdi32 -lwinmm -std=c99
+	TARGET = rl-mines.exe
 endif
 
 SRCDIR = src
@@ -17,7 +19,6 @@ BINDIR = bin
 
 SRCS = $(wildcard src/*.c)
 OBJS = $(SRCS:src/%.c=obj/%.o)
-TARGET = rl-mines
 
 all: $(TARGET)
 
