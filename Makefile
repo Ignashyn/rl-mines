@@ -1,5 +1,5 @@
 
-CC ?= cc
+CC ?= gcc
 CFLAGS = -std=c99 -I raylib/raylib-5.0/include/
 TARGET = rl-mines
 TARGET_OS ?= win64
@@ -9,7 +9,8 @@ LDLIBS = -lraylib
 ifeq ($(TARGET_OS),linux-amd64)
 	LDLIBS += -lGL -lm -lpthread -ldl -lrt -lX11
 else
-	LDLIBS += -lopengl32 -lgdi32 -lwinmm -std=c99
+	LDLIBS += -lopengl32 -lgdi32 -lwinmm
+	CFLAGS += -mwindows
 	TARGET = rl-mines.exe
 endif
 

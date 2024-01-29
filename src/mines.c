@@ -2,17 +2,55 @@
 #include <stdlib.h>
 #include <stdbool.h>
 #include <stdio.h>
+#include <string.h>
 
 #include "mines.h"
 #include "raylib.h"
 
-static float scale;
-static Grid grid;
-static bool isDefeat;
-static bool isVictory;
-static Texture2D tiles;
+#define TILE_SIZE       16
+
+#define TILE_OPEN_0     (Rectangle) { 0,   0, TILE_SIZE, TILE_SIZE}
+#define TILE_OPEN_1     (Rectangle) {16,   0, TILE_SIZE, TILE_SIZE}
+#define TILE_OPEN_2     (Rectangle) {32,   0, TILE_SIZE, TILE_SIZE}
+#define TILE_OPEN_3     (Rectangle) { 0,  16, TILE_SIZE, TILE_SIZE}
+#define TILE_OPEN_4     (Rectangle) {16,  16, TILE_SIZE, TILE_SIZE}
+#define TILE_OPEN_5     (Rectangle) {32,  16, TILE_SIZE, TILE_SIZE}
+#define TILE_OPEN_6     (Rectangle) { 0,  32, TILE_SIZE, TILE_SIZE}
+#define TILE_OPEN_7     (Rectangle) {16,  32, TILE_SIZE, TILE_SIZE}
+#define TILE_OPEN_8     (Rectangle) {32,  32, TILE_SIZE, TILE_SIZE}
+#define TILE_MINE       (Rectangle) { 0,  48, TILE_SIZE, TILE_SIZE}
+#define TILE_OPEN_MINE  (Rectangle) {16,  48, TILE_SIZE, TILE_SIZE}
+#define TILE_FALSE_FLAG (Rectangle) {32,  48, TILE_SIZE, TILE_SIZE}
+#define TILE_FLAG       (Rectangle) { 0,  64, TILE_SIZE, TILE_SIZE}
+#define TILE_CLOSED     (Rectangle) {16,  64, TILE_SIZE, TILE_SIZE}
+
+typedef struct
+{
+    bool isOpen;
+    bool isFlag;
+    bool isMine;
+
+    int around;
+} Tile;
+
+typedef struct
+{
+    int width;
+    int height;
+    int mines;
+
+    Tile** field;
+} Grid;
+
 static int frames;
 static int secs;
+static float scale;
+static bool isDefeat;
+static bool isVictory;
+static bool isGameOn;
+static Grid grid;
+static Texture2D tiles;
+static RenderTexture2D framebuf;
 static char title[50];
 
 static void GridAlloc (int width, int height, int mines)
@@ -55,7 +93,6 @@ static void GridTileFlag (int x, int y)
 {
     if (!grid.field[y][x].isOpen) {
         grid.field[y][x].isFlag = !grid.field[y][x].isFlag;
-        grid.field[y][x].update = true;
     }
 }
 
@@ -76,7 +113,6 @@ static void GridTileOpen (int x, int y)
     }
 
     grid.field[y][x].isOpen = true;
-    grid.field[y][x].update = true;
 
     if (grid.field[y][x].around != flags) return;
 
@@ -87,7 +123,6 @@ static void GridTileOpen (int x, int y)
             if (!grid.field[y+i][x+j].isOpen) {
                 if (!grid.field[y+i][x+j].isFlag) {
                     grid.field[y+i][x+j].isOpen = true;
-                    grid.field[y+i][x+j].update = true;
                     GridTileOpen(x+j, y+i);
                 }
             }
@@ -95,24 +130,18 @@ static void GridTileOpen (int x, int y)
     }
 }
 
-static void GridUpdate (void)
-{
-    for (int y = 0;y < grid.height;++y) {
-        for (int x = 0;x < grid.width;++x) {
-            grid.field[y][x].update = true;
-        }
-    }
-}
-
 static void GridReinit (int width, int height, int mines)
 {
+    frames = 0;
+    secs = 0;
+    isDefeat = false;
+    isVictory = false;
+    isGameOn = false;
     GridDealloc();
     GridAlloc(width, height, mines);
     GridFill();
-    SetWindowSize(TILE_SIZE * scale * width, TILE_SIZE * scale * height);
-    GridUpdate();
-    frames = 0;
-    secs = 0;
+    SetWindowSize(TILE_SIZE * width * scale, TILE_SIZE * height * scale);
+    framebuf = LoadRenderTexture(TILE_SIZE * width * scale, TILE_SIZE * height * scale);
     sprintf(title, "raylib Minesweeper (time: %4d)", secs);
 }
 
@@ -123,7 +152,6 @@ static void CheckIfDefeat (void)
             if (grid.field[y][x].isMine && grid.field[y][x].isOpen) {
                 if (!isDefeat) {
                     isDefeat = true;
-                    GridUpdate();
                 }
             }
         }
@@ -141,7 +169,6 @@ static void CheckIfVictory (void)
     if (opens == grid.width * grid.height - grid.mines) {
         if (!isVictory) {
             isVictory = true;
-            GridUpdate();
         }
     }
 }
@@ -177,44 +204,69 @@ static Rectangle SelectTileTexture (int x, int y)
 }
 
 void GameInit (void)
-{
+{    
+    char *logopath = (char*)GetApplicationDirectory();
+    strcat(logopath, "../resources/logo.png");
+
+    if (!FileExists(logopath)) {
+        exit(1);
+    } else {
+        Image logo = LoadImage(logopath);
+        SetWindowIcon(logo);
+    }
+    
+    char *tilespath = (char*)GetApplicationDirectory();
+    strcat(tilespath, "../resources/tiles.png");
+
+    if (!FileExists(tilespath)) {
+        exit(2);
+    } else {
+        tiles = LoadTexture(tilespath);
+    }
+
     scale = 1.5f;
-    GridReinit(9, 9, 10);
-    isDefeat = false;
-    isVictory = false;
-    tiles = LoadTexture("resources/tiles.png");
     frames = 0;
     secs = 0;
+    isDefeat = false;
+    isVictory = false;
+    isGameOn = false;
+    GridReinit(9, 9, 10);
+    framebuf = LoadRenderTexture(TILE_SIZE * scale * grid.width, TILE_SIZE * scale * grid.height);
 }
 
 void GameDeinit (void)
 {
     UnloadTexture(tiles);
+    UnloadRenderTexture(framebuf);
     GridDealloc();
 }
 
 void GameDraw (void)
 {
-    BeginDrawing();
+    BeginTextureMode(framebuf);
         for (int y = 0;y < grid.height;++y) {
             for (int x = 0;x < grid.width;++x) {
-                if (grid.field[y][x].update) {
                     DrawTexturePro(
                         tiles,
                         SelectTileTexture(x, y),
-                        (Rectangle) {
-                            x * scale * TILE_SIZE,
-                            y * scale * TILE_SIZE,
-                            TILE_SIZE * scale,
-                            TILE_SIZE * scale
-                        },
+                        (Rectangle) {TILE_SIZE * scale * x, TILE_SIZE * scale * y, TILE_SIZE * scale, TILE_SIZE * scale},
                         (Vector2) {0, 0},
-                        0,
-                        (Color) {255, 255, 255, 255});
-                    grid.field[y][x].update = false;
-                }
+                        0.0f,
+                        WHITE
+                    );
             }
         }
+    EndTextureMode();
+  
+    BeginDrawing();
+        DrawTexturePro(
+            framebuf.texture,
+            (Rectangle) {0, 0, framebuf.texture.width, -framebuf.texture.height},
+            (Rectangle) {0, 0, framebuf.texture.width, framebuf.texture.height},
+            (Vector2) {0, 0},
+            0.0f,
+            WHITE
+        );
     EndDrawing();
 }
 
@@ -225,6 +277,9 @@ void GameUpdate (void)
 
     if (!(isDefeat || isVictory)) {
         if (IsMouseButtonPressed(MOUSE_LEFT_BUTTON)) {
+            if (!isGameOn) {
+                isGameOn = true;
+            }
             GridTileOpen(
                 GetMouseX() / (TILE_SIZE * scale),
                 GetMouseY() / (TILE_SIZE * scale));
@@ -236,11 +291,13 @@ void GameUpdate (void)
                 GetMouseY() / (TILE_SIZE * scale));
         }
 
-        frames++;
-        if (frames == 60) {
-            secs++;
-            frames = 0;
-            sprintf(title, "raylib Minesweeper (time: %4d)", secs);
+        if (isGameOn) {
+            frames++;
+            if (frames == 60) {
+                secs++;
+                frames = 0;
+                sprintf(title, "raylib Minesweeper (time: %4d)", secs);
+            }
         }
     } else {
         sprintf(title, "raylib Minesweeper (%s%stime: %4d)", isDefeat ? "Defeat, " : "", isVictory ? "Victory, " : "", secs);
@@ -248,43 +305,31 @@ void GameUpdate (void)
 
     SetWindowTitle(title);
 
-    if (IsKeyPressed(KEY_ONE)) {
-        isDefeat = false;
-        isVictory = false;
+    if (IsKeyPressed(KEY_ONE)) {      
         GridReinit(9, 9, 10);
     }
 
     if (IsKeyPressed(KEY_TWO)) {
-        isDefeat = false;
-        isVictory = false;
         GridReinit(16, 16, 40);
     }
 
     if (IsKeyPressed(KEY_THREE)) {
-        isDefeat = false;
-        isVictory = false;
         GridReinit(30, 16, 99);
     }
 
     if (IsKeyPressed(KEY_R)) {
-        isDefeat = false;
-        isVictory = false;
         GridReinit(grid.width, grid.height, grid.mines);
-    }
-
-    if (IsKeyPressed(KEY_E)) {
-        GridUpdate();
     }
 
     if (IsKeyPressed(KEY_MINUS)) {
         if (scale > 1.5f) scale -= 0.5f;
         SetWindowSize(TILE_SIZE * scale * grid.width, TILE_SIZE * scale * grid.height);
-        GridUpdate();
+        framebuf = LoadRenderTexture(TILE_SIZE * scale * grid.width, TILE_SIZE * scale * grid.height);
     }
 
     if (IsKeyPressed(KEY_EQUAL)) {
         if (scale < 3.0f) scale += 0.5f;
         SetWindowSize(TILE_SIZE * scale * grid.width, TILE_SIZE * scale * grid.height);
-        GridUpdate();
+        framebuf = LoadRenderTexture(TILE_SIZE * scale * grid.width, TILE_SIZE * scale * grid.height);
     }
 }
