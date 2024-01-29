@@ -12,7 +12,7 @@ int main (void)
     SetTraceLogLevel(LOG_ERROR);
     SetTargetFPS(60);
 
-    InitWindow(TILE_SIZE * 1.5f * 9, TILE_SIZE * 1.5f * 9, "raylib Minesweeper");
+    InitWindow(32, 32, "raylib Minesweeper");
     GameInit();
     while (!WindowShouldClose()) {
         GameDraw();
