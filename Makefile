@@ -15,7 +15,7 @@ OBJS = $(SRCS:src/%.c=obj/%.o)
 
 ifeq ($(OS),Windows_NT)
 TARGET := $(TARGET).exe
-LDFLAGS := $(LDFLAGS)/win64
+LDFLAGS := $(LDFLAGS)/win64_mingw-w64
 LDLIBS += -lopengl32 -lgdi32 -lwinmm
 
 RMDIR = rmdir /s /q
@@ -23,7 +23,7 @@ else
 UNAME = $(shell uname)
 
 ifeq ($(UNAME),Linux)
-LDFLAGS := $(LDFLAGS)/linux-amd64
+LDFLAGS := $(LDFLAGS)/linux_amd64
 LDLIBS += -lm
 RMDIR = rm -fr
 endif
