@@ -1,19 +1,11 @@
 
 CC ?= gcc
-CFLAGS = -std=c99 -I raylib/raylib-5.0/include/
-TARGET = rl-mines
-TARGET_OS ?= win64
-LDFLAGS = -L raylib/raylib-5.0/lib/$(TARGET_OS)
+CCFLAGS = -std=c99
+INCLUDE = -I raylib/raylib-5.0/include
+LDFLAGS = -L raylib/raylib-5.0/lib
 LDLIBS = -lraylib
 
-ifeq ($(TARGET_OS),linux-amd64)
-	LDLIBS += -lGL -lm -lpthread -ldl -lrt -lX11
-else
-	LDLIBS += -lopengl32 -lgdi32 -lwinmm
-	CFLAGS += -mwindows
-	TARGET = rl-mines.exe
-endif
-
+TARGET = rl-mines
 SRCDIR = src
 OBJDIR = obj
 BINDIR = bin
@@ -21,19 +13,36 @@ BINDIR = bin
 SRCS = $(wildcard src/*.c)
 OBJS = $(SRCS:src/%.c=obj/%.o)
 
-all: $(TARGET)
+ifeq ($(OS),Windows_NT)
+TARGET := $(TARGET).exe
+LDFLAGS := $(LDFLAGS)/win64
+LDLIBS += -lopengl32 -lgdi32 -lwinmm
 
-clean:
-	rm -fr $(OBJDIR)
-	rm -fr $(BINDIR)
+RMDIR = rmdir /s /q
+else
+UNAME = $(shell uname)
+
+ifeq ($(UNAME),Linux)
+LDFLAGS := $(LDFLAGS)/linux-amd64
+LDLIBS += -lm
+RMDIR = rm -fr
+endif
+
+endif
 
 .PHONY: all clean
 
+all: $(TARGET)
+
+clean:
+	$(RMDIR) $(OBJDIR)
+	$(RMDIR) $(BINDIR)
+
 $(TARGET): $(OBJDIR) $(BINDIR) $(OBJS)
-	$(CC) $(OBJS) $(CFLAGS) $(LDFLAGS) $(LDLIBS) -o $(BINDIR)/$(TARGET)
+	$(CC) -O3 $(OBJS) $(CCFLAGS) $(LDFLAGS) $(LDLIBS) -o $(BINDIR)/$(TARGET)
 
 $(OBJS): $(OBJDIR)/%.o: $(SRCDIR)/%.c
-	$(CC) -c $< $(CFLAGS) -o $@
+	$(CC) -c $< $(CCFLAGS) $(INCLUDE) -o $@
 
 $(OBJDIR):
 	mkdir $(OBJDIR)
