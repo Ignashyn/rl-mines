@@ -206,7 +206,7 @@ static Rectangle SelectTileTexture (int x, int y)
 void GameInit (void)
 {    
     char *logopath = (char*)GetApplicationDirectory();
-    strcat(logopath, "../resources/logo.png");
+    strcat(logopath, "../res/logo.png");
 
     if (!FileExists(logopath)) {
         exit(1);
@@ -216,10 +216,10 @@ void GameInit (void)
     }
     
     char *tilespath = (char*)GetApplicationDirectory();
-    strcat(tilespath, "../resources/tiles.png");
+    strcat(tilespath, "../res/tiles.png");
 
     if (!FileExists(tilespath)) {
-        exit(2);
+        exit(1);
     } else {
         tiles = LoadTexture(tilespath);
     }

@@ -1,9 +1,9 @@
 
-CC ?= gcc
+CC      = gcc
 CCFLAGS = -std=c99
 INCLUDE = -I raylib/raylib-5.0/include
 LDFLAGS = -L raylib/raylib-5.0/lib
-LDLIBS = -lraylib
+LDLIBS  = -lraylib
 
 TARGET = rl-mines
 SRCDIR = src
@@ -14,20 +14,29 @@ SRCS = $(wildcard src/*.c)
 OBJS = $(SRCS:src/%.c=obj/%.o)
 
 ifeq ($(OS),Windows_NT)
-TARGET := $(TARGET).exe
-LDFLAGS := $(LDFLAGS)/win64_mingw-w64
-LDLIBS += -lopengl32 -lgdi32 -lwinmm
+	RMDIR   = rd /s /q
 
-RMDIR = rmdir /s /q
+	TARGET  := $(TARGET).exe
+	LDLIBS  := $(LDLIBS) -lopengl32 -lgdi32 -lwinmm
+
+	ifeq ($(PROCESSOR_ARCHITECTURE),AMD64)
+		CCFLAGS := $(CCFLAGS) -mwindows -m64
+		LDFLAGS := $(LDFLAGS)/win64_mingw-w64
+	endif
+	ifeq ($(PROCESSOR_ARCHITECTURE),x86)
+		CCFLAGS := $(CCFLAGS) -mwindows -m32
+		LDFLAGS := $(LDFLAGS)/win32_mingw-w64
+	endif
 else
-UNAME = $(shell uname)
+	UNAME = $(shell uname)
 
-ifeq ($(UNAME),Linux)
-LDFLAGS := $(LDFLAGS)/linux_amd64
-LDLIBS += -lm
-RMDIR = rm -fr
-endif
-
+	ifeq ($(UNAME),Linux)
+		LDFLAGS := $(LDFLAGS)/linux_amd64
+		LDLIBS  := $(LDLIBS) -lm
+		RMDIR   = rm -fr
+	else
+		@echo "Unidentified OS. No flags set."
+	endif
 endif
 
 .PHONY: all clean
@@ -39,7 +48,7 @@ clean:
 	$(RMDIR) $(BINDIR)
 
 $(TARGET): $(OBJDIR) $(BINDIR) $(OBJS)
-	$(CC) -O3 $(OBJS) $(CCFLAGS) $(LDFLAGS) $(LDLIBS) -o $(BINDIR)/$(TARGET)
+	$(CC) -O2 $(OBJS) $(CCFLAGS) $(LDFLAGS) $(LDLIBS) -o $(BINDIR)/$(TARGET)
 
 $(OBJS): $(OBJDIR)/%.o: $(SRCDIR)/%.c
 	$(CC) -c $< $(CCFLAGS) $(INCLUDE) -o $@

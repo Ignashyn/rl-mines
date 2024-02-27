@@ -13,7 +13,7 @@ int main (void)
     SetTargetFPS(60);
 
     InitWindow(32, 32, "raylib Minesweeper");
-    GameInit();
+    GameInit();    
     while (!WindowShouldClose()) {
         GameDraw();
         GameUpdate();
