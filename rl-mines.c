@@ -48,6 +48,7 @@ static float scale;
 static bool isDefeat;
 static bool isVictory;
 static bool isGameOn;
+static bool isGridFilled;
 static Grid grid;
 static Texture2D tiles;
 static RenderTexture2D framebuf;
@@ -69,21 +70,23 @@ void GridDealloc (void)
     free(grid.field);
 }
 
-void GridFill (void)
+void GridFill (int curX, int curY)
 {
-    for (int i = 0;i < grid.mines;++i) {
+    for (int mines = 0;mines < grid.mines;) {
         int x = rand() % grid.width;
         int y = rand() % grid.height;
 
-        if (grid.field[y][x].isMine) --i;
-        else {
-            grid.field[y][x].isMine = true;
-            for (int i = -1;i < 2;++i) {
-                if (y+i < 0 || y+i >= grid.height) continue;
-                for (int j = -1;j < 2;++j) {
-                    if (x+j < 0 || x+j >= grid.width) continue;
-                    grid.field[y+i][x+j].around++;
-                }
+        if (grid.field[y][x].isMine) continue;
+        if (x == curX || y == curY) continue;
+
+        mines++;
+        grid.field[y][x].isMine = true;
+
+        for (int i = -1;i < 2;++i) {
+            if (y+i < 0 || y+i >= grid.height) continue;
+            for (int j = -1;j < 2;++j) {
+                if (x+j < 0 || x+j >= grid.width) continue;
+                grid.field[y+i][x+j].around++;
             }
         }
     }
@@ -101,7 +104,7 @@ void GridTileOpen (int x, int y)
     int flags = 0;
 
     if (grid.field[y][x].isFlag) return;
-    
+
     if (grid.field[y][x].isOpen) {
         for (int i = -1;i < 2;++i) {
             if (y+i < 0 || y+i >= grid.height) continue;
@@ -134,12 +137,15 @@ void GridReinit (int width, int height, int mines)
 {
     frames = 0;
     secs = 0;
+
     isDefeat = false;
     isVictory = false;
     isGameOn = false;
+    isGridFilled = false;
+
     GridDealloc();
     GridAlloc(width, height, mines);
-    GridFill();
+
     SetWindowSize(TILE_SIZE * width * scale, TILE_SIZE * height * scale);
     framebuf = LoadRenderTexture(TILE_SIZE * width * scale, TILE_SIZE * height * scale);
     sprintf(title, "raylib Minesweeper (time: %4d)", secs);
@@ -205,6 +211,8 @@ Rectangle SelectTileTexture (int x, int y)
 
 void GameInit (void)
 {    
+    InitWindow(9 * TILE_SIZE * scale, 9 * TILE_SIZE * scale, "raylib Minesweeper");
+
     char *logopath = (char*)GetApplicationDirectory();
     strcat(logopath, "res/logo.png");
 
@@ -214,7 +222,7 @@ void GameInit (void)
         Image logo = LoadImage(logopath);
         SetWindowIcon(logo);
     }
-    
+
     char *tilespath = (char*)GetApplicationDirectory();
     strcat(tilespath, "res/tiles.png");
 
@@ -227,9 +235,12 @@ void GameInit (void)
     scale = 1.5f;
     frames = 0;
     secs = 0;
+
     isDefeat = false;
     isVictory = false;
     isGameOn = false;
+    isGridFilled = false;
+
     GridReinit(9, 9, 10);
     framebuf = LoadRenderTexture(TILE_SIZE * scale * grid.width, TILE_SIZE * scale * grid.height);
 }
@@ -239,6 +250,7 @@ void GameDeinit (void)
     UnloadTexture(tiles);
     UnloadRenderTexture(framebuf);
     GridDealloc();
+    CloseWindow();
 }
 
 void GameDraw (void)
@@ -246,18 +258,18 @@ void GameDraw (void)
     BeginTextureMode(framebuf);
         for (int y = 0;y < grid.height;++y) {
             for (int x = 0;x < grid.width;++x) {
-                    DrawTexturePro(
-                        tiles,
-                        SelectTileTexture(x, y),
-                        (Rectangle) {TILE_SIZE * scale * x, TILE_SIZE * scale * y, TILE_SIZE * scale, TILE_SIZE * scale},
-                        (Vector2) {0, 0},
-                        0.0f,
-                        WHITE
-                    );
+                DrawTexturePro(
+                    tiles,
+                    SelectTileTexture(x, y),
+                    (Rectangle) {TILE_SIZE * scale * x, TILE_SIZE * scale * y, TILE_SIZE * scale, TILE_SIZE * scale},
+                    (Vector2) {0, 0},
+                    0.0f,
+                    WHITE
+                );
             }
         }
     EndTextureMode();
-  
+
     BeginDrawing();
         DrawTexturePro(
             framebuf.texture,
@@ -280,6 +292,15 @@ void GameUpdate (void)
             if (!isGameOn) {
                 isGameOn = true;
             }
+
+            if (!isGridFilled) {
+                GridFill(
+                    GetMouseX() / (TILE_SIZE * scale),
+                    GetMouseY() / (TILE_SIZE * scale));
+
+                isGridFilled = true;
+            }
+
             GridTileOpen(
                 GetMouseX() / (TILE_SIZE * scale),
                 GetMouseY() / (TILE_SIZE * scale));
@@ -341,14 +362,12 @@ int main (void)
     SetTraceLogLevel(LOG_ERROR);
     SetTargetFPS(60);
 
-    InitWindow(32, 32, "raylib Minesweeper");
     GameInit();    
     while (!WindowShouldClose()) {
-        GameDraw();
         GameUpdate();
+        GameDraw();
     }
     GameDeinit();
-    CloseWindow();
 
     return 0;
 }
